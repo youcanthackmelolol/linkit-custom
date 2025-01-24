@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,32 +7,104 @@ import { useToast } from "@/components/ui/use-toast";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Music, Image, Upload } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import type { Profile } from "@/lib/supabase";
 
 export const ProfileCustomizer = () => {
   const { toast } = useToast();
-  const [profileImage, setProfileImage] = useState("");
-  const [backgroundImage, setBackgroundImage] = useState("");
-  const [description, setDescription] = useState("");
-  const [audioUrl, setAudioUrl] = useState("");
+  const [profile, setProfile] = useState<Partial<Profile>>({});
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: "profile" | "background") => {
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load profile",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (data) {
+      setProfile(data);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "avatar" | "background") => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (type === "profile") {
-          setProfileImage(reader.result as string);
-        } else {
-          setBackgroundImage(reader.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setIsLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${type}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('profiles')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('profiles')
+        .getPublicUrl(fileName);
+
+      const updates = type === 'avatar' 
+        ? { avatar_url: publicUrl }
+        : { background_url: publicUrl };
+
+      setProfile(prev => ({ ...prev, ...updates }));
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: "Success",
+        description: `${type === 'avatar' ? 'Profile' : 'Background'} picture updated`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSave = async () => {
+    setIsLoading(true);
     try {
-      // TODO: Save to Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(profile)
+        .eq('id', user.id);
+
+      if (error) throw error;
+
       toast({
         title: "Success",
         description: "Profile updated successfully",
@@ -40,9 +112,11 @@ export const ProfileCustomizer = () => {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update profile",
+        description: error instanceof Error ? error.message : "Failed to update profile",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -53,7 +127,7 @@ export const ProfileCustomizer = () => {
           <Label className="text-lg font-semibold mb-4 block">Profile Picture</Label>
           <div className="flex items-center gap-4">
             <Avatar className="h-24 w-24">
-              <AvatarImage src={profileImage} />
+              <AvatarImage src={profile.avatar_url} />
               <AvatarFallback>
                 <Image className="h-12 w-12 text-gray-400" />
               </AvatarFallback>
@@ -62,8 +136,9 @@ export const ProfileCustomizer = () => {
               <Input
                 type="file"
                 accept="image/*"
-                onChange={(e) => handleImageUpload(e, "profile")}
+                onChange={(e) => handleImageUpload(e, "avatar")}
                 className="bg-gray-700"
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -72,8 +147,8 @@ export const ProfileCustomizer = () => {
         <Card className="p-6 bg-gray-800/30 border-gray-700">
           <Label className="text-lg font-semibold mb-4 block">Background Image</Label>
           <div className="flex items-center gap-4">
-            {backgroundImage ? (
-              <img src={backgroundImage} alt="Background" className="h-24 w-32 object-cover rounded" />
+            {profile.background_url ? (
+              <img src={profile.background_url} alt="Background" className="h-24 w-32 object-cover rounded" />
             ) : (
               <div className="h-24 w-32 bg-gray-700 rounded flex items-center justify-center">
                 <Upload className="h-8 w-8 text-gray-400" />
@@ -85,6 +160,7 @@ export const ProfileCustomizer = () => {
                 accept="image/*"
                 onChange={(e) => handleImageUpload(e, "background")}
                 className="bg-gray-700"
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -94,10 +170,11 @@ export const ProfileCustomizer = () => {
       <Card className="p-6 bg-gray-800/30 border-gray-700">
         <Label className="text-lg font-semibold mb-4 block">Description</Label>
         <Textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={profile.description || ""}
+          onChange={(e) => setProfile(prev => ({ ...prev, description: e.target.value }))}
           placeholder="Tell visitors about yourself..."
           className="bg-gray-700 min-h-[100px]"
+          disabled={isLoading}
         />
       </Card>
 
@@ -107,16 +184,17 @@ export const ProfileCustomizer = () => {
           <Music className="h-6 w-6 text-gray-400" />
           <Input
             type="url"
-            value={audioUrl}
-            onChange={(e) => setAudioUrl(e.target.value)}
+            value={profile.music_url || ""}
+            onChange={(e) => setProfile(prev => ({ ...prev, music_url: e.target.value }))}
             placeholder="Add a music URL (Spotify, SoundCloud, etc.)"
             className="bg-gray-700"
+            disabled={isLoading}
           />
         </div>
       </Card>
 
-      <Button onClick={handleSave} className="w-full">
-        Save Changes
+      <Button onClick={handleSave} className="w-full" disabled={isLoading}>
+        {isLoading ? "Saving..." : "Save Changes"}
       </Button>
     </div>
   );
