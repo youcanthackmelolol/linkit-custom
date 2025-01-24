@@ -16,6 +16,19 @@ export const AuthForm = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new Error("Please enter a valid email address");
+    }
+  };
+
+  const validatePassword = (password: string) => {
+    if (password.length < 6) {
+      throw new Error("Password must be at least 6 characters long");
+    }
+  };
+
   const checkUsername = async (username: string) => {
     const { data, error } = await supabase
       .from('profiles')
@@ -40,6 +53,9 @@ export const AuthForm = () => {
     setIsLoading(true);
     
     try {
+      validateEmail(email);
+      validatePassword(password);
+
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
           email,
@@ -130,6 +146,7 @@ export const AuthForm = () => {
             onChange={(e) => setPassword(e.target.value)}
             required
             className="w-full"
+            minLength={6}
           />
         </div>
         <Button type="submit" className="w-full" disabled={isLoading}>
