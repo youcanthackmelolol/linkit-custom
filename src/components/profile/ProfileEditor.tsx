@@ -10,7 +10,7 @@ import {
   Facebook,
   Youtube,
   TwitchIcon,
-  Discord,
+  MessageSquare,
   Music,
 } from "lucide-react";
 
@@ -31,7 +31,7 @@ export const ProfileEditor = () => {
     { platform: "Facebook", url: "", icon: <Facebook className="h-5 w-5" /> },
     { platform: "YouTube", url: "", icon: <Youtube className="h-5 w-5" /> },
     { platform: "Twitch", url: "", icon: <TwitchIcon className="h-5 w-5" /> },
-    { platform: "Discord", url: "", icon: <Discord className="h-5 w-5" /> },
+    { platform: "Discord", url: "", icon: <MessageSquare className="h-5 w-5" /> },
   ]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
