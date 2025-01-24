@@ -23,11 +23,16 @@ export const AuthForm = () => {
       .eq('username', username)
       .single();
 
-    if (error && error.code !== 'PGRST116') {
+    if (error && error.code === 'PGRST116') {
+      // No rows returned means username is available
+      return true;
+    }
+
+    if (error) {
       throw error;
     }
 
-    return !data;
+    return false;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,34 +66,18 @@ export const AuthForm = () => {
         const { error: signUpError, data } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              username: username.toLowerCase(),
+            }
+          }
         });
 
         if (signUpError) throw signUpError;
 
-        if (data.user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: data.user.id,
-                username,
-                appearance: {
-                  opacity: 50,
-                  blur: 20,
-                  accent_color: "#1b1b1b",
-                  text_color: "#FFFFFF",
-                  socials_glow: false,
-                  username_glow: false,
-                }
-              }
-            ]);
-
-          if (profileError) throw profileError;
-        }
-
         toast({
           title: "Success",
-          description: "Account created successfully",
+          description: "Account created successfully! Please check your email to verify your account.",
         });
         navigate("/dashboard");
       }
