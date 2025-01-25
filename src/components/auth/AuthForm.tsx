@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { GlassCard } from "@/components/common/GlassCard";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 export const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -30,22 +30,21 @@ export const AuthForm = () => {
   };
 
   const checkUsername = async (username: string) => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('username', username)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username)
+        .maybeSingle();
 
-    if (error && error.code === 'PGRST116') {
-      // No rows returned means username is available
-      return true;
-    }
-
-    if (error) {
+      if (error) throw error;
+      
+      // If no data is returned, the username is available
+      return !data;
+    } catch (error) {
+      console.error('Error checking username:', error);
       throw error;
     }
-
-    return false;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
