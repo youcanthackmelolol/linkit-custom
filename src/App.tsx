@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
-import Profile from "./pages/Profile";
+import ProfileEditor from "./pages/ProfileEditor";
 import UserProfile from "./pages/UserProfile";
 
 const queryClient = new QueryClient();
@@ -21,7 +21,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/edit" element={<ProfileEditor />} />
             <Route path="/:username" element={<UserProfile />} />
           </Routes>
         </AnimatePresence>
