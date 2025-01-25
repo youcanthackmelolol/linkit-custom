@@ -16,7 +16,18 @@ type Profile = Database['public']['Tables']['profiles']['Row'];
 export const ProfileCustomizer = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [profile, setProfile] = useState<Partial<Profile>>({});
+  const [profile, setProfile] = useState<Profile>({
+    id: '',
+    username: '',
+    avatar_url: null,
+    background_url: null,
+    description: null,
+    music_url: null,
+    social_links: null,
+    appearance: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -159,7 +170,7 @@ export const ProfileCustomizer = () => {
           <Label className="text-lg font-semibold mb-4 block">Profile Picture</Label>
           <div className="flex items-center gap-4">
             <Avatar className="h-24 w-24">
-              <AvatarImage src={profile.avatar_url} />
+              <AvatarImage src={profile.avatar_url || undefined} />
               <AvatarFallback>
                 <User className="h-12 w-12 text-gray-400" />
               </AvatarFallback>
