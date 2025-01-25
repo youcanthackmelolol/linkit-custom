@@ -7,6 +7,7 @@ import { AnimatePresence } from "framer-motion";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import UserProfile from "./pages/UserProfile";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/:username" element={<UserProfile />} />
           </Routes>
         </AnimatePresence>
       </BrowserRouter>

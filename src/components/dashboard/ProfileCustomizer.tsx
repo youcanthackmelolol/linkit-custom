@@ -6,20 +6,47 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Music, Image, Upload } from "lucide-react";
+import { Music, Image, Upload, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export const ProfileCustomizer = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [profile, setProfile] = useState<Partial<Profile>>({});
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     loadProfile();
+    setupRealtimeUpdates();
   }, []);
+
+  const setupRealtimeUpdates = () => {
+    const channel = supabase
+      .channel('profile_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles'
+        },
+        (payload) => {
+          if (payload.new.id === profile.id) {
+            setProfile(payload.new as Profile);
+            queryClient.invalidateQueries({ queryKey: ['profile', payload.new.username] });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
 
   const loadProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -111,6 +138,9 @@ export const ProfileCustomizer = () => {
         title: "Success",
         description: "Profile updated successfully",
       });
+
+      // Invalidate the profile query to update the UI
+      queryClient.invalidateQueries({ queryKey: ['profile', profile.username] });
     } catch (error) {
       toast({
         title: "Error",
@@ -131,7 +161,7 @@ export const ProfileCustomizer = () => {
             <Avatar className="h-24 w-24">
               <AvatarImage src={profile.avatar_url} />
               <AvatarFallback>
-                <Image className="h-12 w-12 text-gray-400" />
+                <User className="h-12 w-12 text-gray-400" />
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
