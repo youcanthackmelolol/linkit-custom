@@ -51,9 +51,14 @@ export const ProfileCustomizer = () => {
           table: 'profiles'
         },
         (payload) => {
-          if ('new' in payload && payload.new.id === profile.id) {
-            setProfile(payload.new as Profile);
-            queryClient.invalidateQueries({ queryKey: ['profile', payload.new.username] });
+          if ('new' in payload && payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
+            const newProfile = payload.new as Profile;
+            if (newProfile.id === profile.id) {
+              setProfile(newProfile);
+              if (newProfile.username) {
+                queryClient.invalidateQueries({ queryKey: ['profile', newProfile.username] });
+              }
+            }
           }
         }
       )
@@ -65,26 +70,59 @@ export const ProfileCustomizer = () => {
   };
 
   const loadProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "Not authenticated",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+      // First try to get the profile
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
 
-    if (error) {
+      if (error) throw error;
+
+      // If profile doesn't exist, create it
+      if (!data) {
+        const newProfile: Profile = {
+          id: user.id,
+          username: null,
+          avatar_url: null,
+          background_url: null,
+          description: null,
+          music_url: null,
+          social_links: null,
+          created_at: null,
+          email: user.email,
+          full_name: null,
+          bio: null,
+          website: null
+        };
+
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([newProfile]);
+
+        if (insertError) throw insertError;
+        
+        setProfile(newProfile);
+      } else {
+        setProfile(data);
+      }
+    } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to load profile",
+        description: error instanceof Error ? error.message : "Failed to load profile",
         variant: "destructive",
       });
-      return;
-    }
-
-    if (data) {
-      setProfile(data);
     }
   };
 
