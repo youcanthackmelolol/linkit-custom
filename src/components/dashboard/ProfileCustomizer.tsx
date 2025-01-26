@@ -10,7 +10,6 @@ import { Music, Image, Upload, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
-import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
@@ -19,22 +18,17 @@ export const ProfileCustomizer = () => {
   const queryClient = useQueryClient();
   const [profile, setProfile] = useState<Profile>({
     id: '',
-    username: '',
+    username: null,
     avatar_url: null,
     background_url: null,
     description: null,
     music_url: null,
     social_links: null,
-    appearance: {
-      blur: 20,
-      opacity: 50,
-      text_color: "#FFFFFF",
-      accent_color: "#1b1b1b",
-      socials_glow: false,
-      username_glow: false
-    },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
+    created_at: null,
+    email: null,
+    full_name: null,
+    bio: null,
+    website: null
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -56,9 +50,9 @@ export const ProfileCustomizer = () => {
           schema: 'public',
           table: 'profiles'
         },
-        (payload: RealtimePostgresChangesPayload<Profile>) => {
+        (payload) => {
           if ('new' in payload && payload.new.id === profile.id) {
-            setProfile(payload.new);
+            setProfile(payload.new as Profile);
             queryClient.invalidateQueries({ queryKey: ['profile', payload.new.username] });
           }
         }
